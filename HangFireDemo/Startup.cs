@@ -22,6 +22,7 @@ namespace HangFireDemo
         {
             var hangfireConnStr = Configuration.GetSection("HangfireConnectionString").Value;
             services.AddHangfire(configuration => configuration.UseSqlServerStorage(hangfireConnStr));
+            services.AddSingleton<IMessageService, MessageService>();
             services.AddControllers();
         }
 
@@ -45,7 +46,21 @@ namespace HangFireDemo
                 endpoints.MapControllers();
             });
 
-            RecurringJob.AddOrUpdate("JobA", () => Console.WriteLine("Recurred"), Cron.MinuteInterval(1));
+            // 立即执行的单次任务
+            BackgroundJob.Enqueue(() => Console.WriteLine("Fire-and-forget"));
+            // 创建计划任务,5分钟后执行
+            BackgroundJob.Schedule(() => Console.WriteLine("Delayed"), TimeSpan.FromMinutes(1));
+            // 创建周期性任务,每隔1分钟执行一次
+            RecurringJob.AddOrUpdate<IMessageService>(o => o.Test(), Cron.Minutely());
+            // 创建周期性任务,每天21:10执行,
+            RecurringJob.AddOrUpdate("JobB", () => Console.WriteLine(DateTimeOffset.Now), "10 21 * * *");
+            // 创建周期性任务,每天21:10执行
+            RecurringJob.AddOrUpdate("JobC", () => Test(), "10 21 * * *", TimeZoneInfo.Local);
+        }
+
+        public void Test()
+        {
+            Console.WriteLine(DateTimeOffset.Now);
         }
     }
 }
